@@ -1,7 +1,6 @@
 {
   "version": 2,
   "projects": {
-    "nest-api": "apps/nest-api",
-    "social-media": "apps/social-media"
+    "nest-api": "apps/nest-api"
   }
 }
