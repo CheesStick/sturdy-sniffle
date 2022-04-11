@@ -5,17 +5,22 @@
 
 import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import helmet from 'helmet';
+// import * as csurf from 'csurf';
 
-import { AppModule } from './app/app.module';
+import { CoreModule } from './core/core.module';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
-  const globalPrefix = 'api';
-  app.setGlobalPrefix(globalPrefix);
-  const port = process.env.PORT || 3333;
+  const app = await NestFactory.create(CoreModule);
+  // app.use(csurf());
+  app.use(helmet({
+    contentSecurityPolicy: false,
+  }));
+  app.enableCors();
+  const port = process.env.PORT || 5000;
   await app.listen(port);
   Logger.log(
-    `🚀 Application is running on: http://localhost:${port}/${globalPrefix}`
+    `🚀 Application is running on: http://localhost:${port}`
   );
 }
 

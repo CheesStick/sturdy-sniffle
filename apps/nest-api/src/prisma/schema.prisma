@@ -7,29 +7,52 @@ generator client {
   provider = "prisma-client-js"
 }
 
-model User {
-  id        Int       @id @default(autoincrement())
-  username  String    @unique()
-  email     String    @unique()
-  password  String
-  image     String    @default("default.jpeg")
-  createdAt DateTime  @default(now()) @db.Timestamp(6)
-  Blog      Post[]
-  Comment   Comment[]
-  @@map("user")
+model Profile {
+  id                     Int       @id @default(autoincrement())
+  username               String    @unique()
+  email                  String    @unique()
+  password               String
+  profile_image          String    @default("default.jpeg")
+  profile_bg_image       String    @default("default_bg.jpeg")
+  is_activated           Boolean   @default(false)
+  password_changed_at    Int       @default(0)
+  password_reset_expires Int       @default(0)
+  password_reset_token   String    
+  createdAt              DateTime  @default(now()) @db.Timestamp(6)
+  Follow                 Follow[]
+  Block                  Block[]
+  Blog                   Post[]
+  Comment                Comment[]
+
+  @@map("profile")
+}
+
+model Follow {
+  id      Int     @id
+  Profile Profile @relation(fields: [id], references: [id])
+
+  @@map("follow")
+}
+
+model Block {
+  id      Int     @id
+  Profile Profile @relation(fields: [id], references: [id])
+
+  @@map("block")
 }
 
 model Post {
-  id        Int          @id @default(autoincrement())
+  id        Int       @id @default(autoincrement())
   title     String
   snippet   String
   body      String
-  likes     Int         @default(0)
-  dislikes  Int         @default(0)
-  createdAt DateTime     @default(now()) @db.Timestamp(6)
+  likes     Int       @default(0)
+  dislikes  Int       @default(0)
+  createdAt DateTime  @default(now()) @db.Timestamp(6)
   authorID  Int
-  User      User         @relation(fields: [authorID], references: [id])
+  Profile   Profile   @relation(fields: [authorID], references: [id])
   Comment   Comment[]
+
   @@unique([title, snippet, body])
   @@map("post")
 }
@@ -40,7 +63,8 @@ model Comment {
   postID    Int
   Blog      Post     @relation(fields: [postID], references: [id])
   authorID  Int
-  User      User     @relation(fields: [authorID], references: [id])
+  User      Profile  @relation(fields: [authorID], references: [id])
   createdAt DateTime @default(now()) @db.Timestamp(6)
+
   @@map("comment")
 }

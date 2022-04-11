@@ -1,0 +1,28 @@
+{
+  "root": "apps/react-ui-e2e",
+  "sourceRoot": "apps/react-ui-e2e/src",
+  "projectType": "application",
+  "targets": {
+    "e2e": {
+      "executor": "@nrwl/cypress:cypress",
+      "options": {
+        "cypressConfig": "apps/react-ui-e2e/cypress.json",
+        "devServerTarget": "react-ui:serve"
+      },
+      "configurations": {
+        "production": {
+          "devServerTarget": "react-ui:serve:production"
+        }
+      }
+    },
+    "lint": {
+      "executor": "@nrwl/linter:eslint",
+      "outputs": ["{options.outputFile}"],
+      "options": {
+        "lintFilePatterns": ["apps/react-ui-e2e/**/*.{js,ts}"]
+      }
+    }
+  },
+  "tags": [],
+  "implicitDependencies": ["react-ui"]
+}

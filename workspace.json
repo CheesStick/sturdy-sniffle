@@ -1,6 +1,8 @@
 {
   "version": 2,
   "projects": {
-    "nest-api": "apps/nest-api"
+    "nest-api": "apps/nest-api",
+    "react-ui": "apps/react-ui",
+    "react-ui-e2e": "apps/react-ui-e2e"
   }
 }
