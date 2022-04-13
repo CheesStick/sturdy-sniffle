@@ -4,9 +4,10 @@ import { ProfileModule } from '../profile/profile.module';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { EmailModule } from '../email/email.module';
 import { LoggerMiddleware } from './logger.middleware';
+import { PrismaModule } from '../prisma/prisma.module';
 
 @Module({
-  imports: [AuthModule, ProfileModule, ThrottlerModule.forRoot({
+  imports: [AuthModule, ProfileModule, PrismaModule, ThrottlerModule.forRoot({
     ttl: 60,
     limit: 10
   }), EmailModule]

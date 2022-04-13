@@ -1,9 +1,6 @@
-import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
+import { Injectable, ForbiddenException, BadRequestException, UnauthorizedException } from '@nestjs/common';
 import { ProfileProvider } from '../profile/profile';
 import { Profile } from '@prisma/client';
-import * as jwt from 'jsonwebtoken';
-import * as bcrypt from 'bcrypt';
-import * as crypto from 'crypto';
 import { AuthProvider } from './auth';
 import { MailService } from '../email/mail.service';
 
@@ -15,63 +12,67 @@ export class AuthService {
     private readonly auth: AuthProvider,
     private readonly mail: MailService ) {}
 
-  private token = (id) => jwt.sign({ id }, process.env.JWT_SECRET_KEY, { expiresIn: '3d' })
-
   async register(body) {
     try {
       const profile: Profile = await this.profile.createProfile(body);
-      return { success: true, token: this.token(profile.id) };
+      const tokens = await this.auth.token(profile.id);
+      const hashedToken = await this.auth.hashData(tokens.refresh_token);
+      await this.profile.updateProfile({ hashed_refresh_token: hashedToken }, profile.id);
+      return tokens;
     } catch (err) {
       if ( err.code === 'P2002' ) err.message = 'email or username has already been taken';
-      throw new HttpException(err.message, HttpStatus.BAD_REQUEST);
+      throw new BadRequestException(err.message);
     }
 
   }
 
   async login(body) {
-    try {
-      const profile: Profile = await this.profile.findProfileByEmail(body.email) ;
-      if ( profile ) {
-        const auth = await bcrypt.compare(body.password, profile.password);
-        if (auth) {
-          return { success: true, token: this.token(profile.id) }
-        }
-      } throw new HttpException('incorrect password', HttpStatus.BAD_REQUEST)
-    } catch (err) {
-      return err;
-    }
+    const profile: Profile = await this.profile.findProfileByEmail(body.email) ;
+    if ( profile ) {
+      const auth = await this.auth.compareData(body.password, profile.password);
+      if (auth) {
+        const tokens = await this.auth.token(profile.id);
+        const hashedToken = await this.auth.hashData(tokens.refresh_token);
+        await this.profile.updateProfile({ hashed_refresh_token: hashedToken }, profile.id);
+        return tokens;
+      }
+    } throw new ForbiddenException;
   }
 
-  logout(profileID)  {
-    return this.profile.findProfileByID(profileID)
-      .then( (profile: Profile) => ({ success: true }))
-      .catch( (err) => ({ success: false }) );
+  async logout(profileID)  {
+    await this.profile.updateProfile({ hashed_refresh_token: '' }, profileID);
+    return profileID;
+  }
+
+  async refreshToken(rt, profileID) {
+    const profile: Profile = await this.profile.findProfileByID(profileID);
+    if ( profile ) {
+      const auth: boolean = await this.auth.compareData(rt, profile.hashed_refresh_token);
+      if ( auth ) {
+        const tokens = await this.auth.token(profile.id);
+        const hashedRToken = await this.auth.hashData(tokens.refresh_token);
+        await this.profile.updateProfile({ hashed_refresh_token: hashedRToken }, profileID);
+        return tokens;
+      }
+    } throw new UnauthorizedException;
   }
 
   async forgotPassword(email) {
-    try {
-      const profile: Profile = await this.profile.findProfileByEmail(email);
-      if (!profile) throw new HttpException('There is no user with such user email', HttpStatus.BAD_REQUEST);
-      const resetToken = await this.auth.createPasswordResetToken(profile);
-      await this.mail.sendMail(profile.email, profile.username, resetToken);
-      return { success: true };
-    } catch (err) {
-      return err;
-    }
+    const profile: Profile = await this.profile.findProfileByEmail(email);
+    if (!profile) throw new BadRequestException('There is no user with such user email');
+    const resetToken = await this.auth.createPasswordResetToken(profile);
+    await this.mail.sendMail(profile.email, profile.username, resetToken);
   }
 
-  async resetPassword(password, token) {
-    try {
-      const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
-      const profile: Profile = await this.profile.findProfileByResetToken(hashedToken);
-      if ( !profile && token !== hashedToken && profile.password_reset_expires < Date.now() ) throw new HttpException('token has expired', HttpStatus.BAD_REQUEST);
-      profile.password = await bcrypt.hash(password, 10);
-      profile.password_changed_at = Date.now();
-      await this.profile.updateProfile(profile, profile.id);
-      return { success: true, token: this.token(profile.id) };
-    } catch (err) {
-      return err;
-    }
+  async resetPassword(token) {
+    const hashedToken = this.auth.hashData(token);
+    const profile: Profile = await this.profile.findProfileByResetToken(hashedToken);
+    if ( !profile && token !== hashedToken && profile.password_reset_expires < Date.now() ) throw new ForbiddenException;
+    const tokens = await this.auth.token(profile.id);
+    profile.password_changed_at = Date.now();
+    profile.hashed_refresh_token = await this.auth.hashData(tokens.refresh_token);
+    await this.profile.updateProfile(profile, profile.id);
+    return tokens;
   }
 
 }

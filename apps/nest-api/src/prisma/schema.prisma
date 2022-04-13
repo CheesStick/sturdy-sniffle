@@ -17,7 +17,8 @@ model Profile {
   is_activated           Boolean   @default(false)
   password_changed_at    Int       @default(0)
   password_reset_expires Int       @default(0)
-  password_reset_token   String    
+  password_reset_token   String    @default("")
+  hashed_refresh_token   String    @default("")
   createdAt              DateTime  @default(now()) @db.Timestamp(6)
   Follow                 Follow[]
   Block                  Block[]
